@@ -11,10 +11,10 @@ export default class ProcessHighlights {
 
         if(this.includeBold) {
             console.log("include Bold");
-            re = /(==|\<mark\>|\*\*)([\s\S]*?)(==|\<\/mark\>|\*\*)/g;
+            re = /(==|\<mark.*?\>|\*\*)([\s\S]*?)(==|\<\/mark\>|\*\*)/g;
         } else {
             console.log("Don't include Bold");
-            re = /(==|\<mark\>)([\s\S]*?)(==|\<\/mark\>)/g;
+            re = /(==|\<mark.*?\>)([\s\S]*?)(==|\<\/mark\>)/g;
         }
 
         let matches = data.match(re);
@@ -25,8 +25,8 @@ export default class ProcessHighlights {
             for (let entry of matches) {
                 var clean = "";
                 clean = entry.replace(/==/g, "");
-                clean = clean.replace(/\<mark\>/g, "");
-                clean = clean.replace(/\<\/mark\>/g, "");
+                clean = clean.replace(/\<mark.*?\>/g, "");
+                clean = clean.replace(/\<\/mark.*?\>/g, "");
                 clean = clean.replace(/\*\*/g, "");
 
                 clean = "- " + clean;
