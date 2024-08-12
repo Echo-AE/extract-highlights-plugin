@@ -1,4 +1,4 @@
-import {Plugin, Notice, addIcon, View, MarkdownView, Workspace} from "obsidian"
+import {Plugin, Notice, addIcon, View, MarkdownView, Workspace, FileManager} from "obsidian"
 import ExtractHighlightsPluginSettings from "./ExtractHighlightsPluginSettings"
 import ExtractHighlightsPluginSettingsTab from "./ExtractHighlightsPluginSettingsTab"
 import ToggleHighlight from "./ToggleHighlight";
@@ -57,6 +57,7 @@ export default class ExtractHighlightsPlugin extends Plugin {
 			this.settings.headlineText = loadedSettings.headlineText;
 			this.settings.addFootnotes = loadedSettings.addFootnotes;
 			this.settings.createLinks = loadedSettings.createLinks;
+			this.settings.addInnerLinks = loadedSettings.addInnerLinks;
 			this.settings.autoCapitalize = loadedSettings.autoCapitalize;
 			this.settings.createNewFile = loadedSettings.createNewFile;
 			this.settings.explodeIntoNotes = loadedSettings.explodeIntoNotes;
@@ -71,12 +72,14 @@ export default class ExtractHighlightsPlugin extends Plugin {
 
 	async extractHighlights() {
 		let activeLeaf: any = this.app.workspace.activeLeaf ?? null
+		//let activeLeaf: any = this.app.workspace.getActiveViewOfType(MarkdownView);
 
 		let name = activeLeaf?.view.file.basename;
 
 		try {
 			if (activeLeaf?.view?.data) {
 				let processResults = this.processHighlights(activeLeaf.view);
+				this.processAddBookmarks();
 				let highlightsText = processResults.markdown;
 				let highlights = processResults.highlights;
 				let baseNames = processResults.baseNames;
@@ -139,14 +142,60 @@ export default class ExtractHighlightsPlugin extends Plugin {
 		}
 	}
 
+	insertAt(str: string, index: number, fragment: string) {
+		if (index > str.length) {
+			return str + fragment;
+		}
+		return str.substring(0, index) + fragment + str.substring(index);
+	}
+
+	processAddBookmarks() {
+		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+		if (view) {
+			let result = view.editor.getValue();
+			let lineCounter = 0;
+			let bookmarkIndex = 0;
+			if(this.settings.addInnerLinks) {
+				const re = /(==|<\/mark>)/g;
+				let lines = result.split("\n");
+				let match;
+				for (let line of lines) {
+					while ((match = re.exec(line)) !== null) {
+						bookmarkIndex++;
+						let lastBlockLine = lineCounter;
+						for (let i = lineCounter; i < lines.length; i++) {
+							if (lines[i] == "") {
+								lastBlockLine = i-1;
+								break;
+							}
+						}
+						const regBookmark = / \^highlight\d+/g;
+						let match2 = regBookmark.exec(lines[lastBlockLine]);
+						if(match2){
+							// remove our existing bookmark
+							view.editor.replaceRange(` ^highlight${bookmarkIndex}`, { line: lastBlockLine, ch: match2.index}, { line: lastBlockLine, ch: match2.index + match2[0].length });
+						}
+						else {
+							view.editor.replaceRange(` ^highlight${bookmarkIndex}`, { line: lastBlockLine, ch: lines[lastBlockLine].length}, { line: lastBlockLine, ch: lines[lastBlockLine].length });
+						}
+					}
+					lineCounter++;
+				}
+			}
+		}
+
+		return true;
+	}
+
 	processHighlights(view: any) {
+		const currentFile = this.app.workspace.getActiveFile();
 
 		var re;
 
 		if(this.settings.useBoldForHighlights) {
-			re = /(==|\<mark\>|\*\*)([\s\S]*?)(==|\<\/mark\>|\*\*)/g;
+			re = /(==|\<mark.*?\>|\*\*)([\s\S]*?)(==|\<\/mark\>|\*\*)/g;
 		} else {
-			re = /(==|\<mark\>)([\s\S]*?)(==|\<\/mark\>)/g;
+			re = /(==|\<mark.*?\>)([\s\S]*?)(==|\<\/mark\>)/g;
 		}
 
 		let markdownText = view.data;
@@ -168,12 +217,14 @@ export default class ExtractHighlightsPlugin extends Plugin {
 		}
 
 		if (matches != null) {
+			let bookmarkIndex = 0;
 			if(this.settings.headlineText != "") { 
 				let text = this.settings.headlineText.replace(/\$NOTE_TITLE/, `${basename}`)
 				result += `## ${text}\n`;
 			}
 
 			for (let entry of matches) {
+				bookmarkIndex++;
 				// Keep surrounding paragraph for context
 				if(this.settings.createContextualQuotes) {
 					for(var i = 0; i < cleanedLines.length; i++) {
@@ -191,7 +242,7 @@ export default class ExtractHighlightsPlugin extends Plugin {
 				// Clean up highlighting match
 				var removeNewline = entry.replace(/\n/g, " ");
 				let removeHighlightStart = removeNewline.replace(/==/g, "")
-				let removeHighlightEnd = removeHighlightStart.replace(/\<mark\>/g, "")
+				let removeHighlightEnd = removeHighlightStart.replace(/\<mark.*?\>/g, "")
 				let removeMarkClosing = removeHighlightEnd.replace(/\<\/mark\>/g, "")
 				let removeBold = removeMarkClosing.replace(/\*\*/g, "")
 				let removeDoubleSpaces = removeBold.replace("  ", " ");
@@ -230,6 +281,11 @@ export default class ExtractHighlightsPlugin extends Plugin {
 				if(this.settings.addFootnotes) {
 					result += `[^${this.counter}]`;
 				} 
+
+				if(this.settings.addInnerLinks) {
+					let currentLink = this.app.fileManager.generateMarkdownLink(currentFile, '.', `#^highlight${bookmarkIndex}`, '(link to text)');
+					result += currentLink;
+				}
 
 				result += "\n";
 			}

@@ -3,6 +3,7 @@ export default class ExtractHighlightsPluginSettings {
   public addFootnotes: boolean;
   public useBoldForHighlights: boolean;
   public createLinks: boolean;
+  public addInnerLinks: boolean;
   public autoCapitalize: boolean;
   public createNewFile: boolean;
   public explodeIntoNotes: boolean;
@@ -14,6 +15,7 @@ export default class ExtractHighlightsPluginSettings {
     this.addFootnotes = false;
     this.useBoldForHighlights = false;
     this.createLinks = false;
+    this.addInnerLinks = false;
     this.autoCapitalize = false;
     this.createNewFile = false;
     this.explodeIntoNotes = false;

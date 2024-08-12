@@ -87,6 +87,19 @@ export default class ExtractHighlightsPluginSettingsTab extends PluginSettingTab
 			);
 
 		new Setting(containerEl)
+			.setName('Add inner links')
+			.setDesc(
+				'If enabled, will add a bookmark to each highlight and link back to the MOC',
+			)
+			.addToggle((toggle) =>
+				toggle.setValue(this.plugin.settings.addInnerLinks).onChange((value) => {
+					this.plugin.settings.addInnerLinks = value;
+
+					this.plugin.saveData(this.plugin.settings);
+				}),
+			);
+
+		new Setting(containerEl)
 			.setName('Open new file with highlights')
 			.setDesc(
 				'If enabled, opens a new file with the highlights copied into.',
