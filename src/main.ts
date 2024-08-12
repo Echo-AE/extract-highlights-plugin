@@ -152,15 +152,29 @@ export default class ExtractHighlightsPlugin extends Plugin {
 	processAddBookmarks() {
 		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
 		if (view) {
-			let result = view.editor.getValue();
-			let lineCounter = 0;
 			let bookmarkIndex = 0;
+			let lineCounter = 0;
 			if(this.settings.addInnerLinks) {
 				const re = /(==|<\/mark>)/g;
-				let lines = result.split("\n");
-				let match;
+				const regBookmark = / \^highlight\d+/g;
+				let fullText = view.editor.getValue();
+				let lines = fullText.split("\n");
+				let match1;
+				lineCounter = 0;
 				for (let line of lines) {
-					while ((match = re.exec(line)) !== null) {
+					// remove all old bookmarks from all lines
+					let match2 = regBookmark.exec(line);
+					if(match2){
+						view.editor.replaceRange("", { line: lineCounter, ch: match2.index}, { line: lineCounter, ch: match2.index + match2[0].length });
+					}
+					lineCounter++;
+				}
+				lineCounter = 0;
+				fullText = view.editor.getValue();
+				lines = fullText.split("\n");
+				for (let line of lines) {
+					// add new bookmarks to the end of the text blocks
+					while ((match1 = re.exec(line)) !== null) {
 						bookmarkIndex++;
 						let lastBlockLine = lineCounter;
 						for (let i = lineCounter; i < lines.length; i++) {
@@ -169,15 +183,8 @@ export default class ExtractHighlightsPlugin extends Plugin {
 								break;
 							}
 						}
-						const regBookmark = / \^highlight\d+/g;
-						let match2 = regBookmark.exec(lines[lastBlockLine]);
-						if(match2){
-							// remove our existing bookmark
-							view.editor.replaceRange(` ^highlight${bookmarkIndex}`, { line: lastBlockLine, ch: match2.index}, { line: lastBlockLine, ch: match2.index + match2[0].length });
-						}
-						else {
-							view.editor.replaceRange(` ^highlight${bookmarkIndex}`, { line: lastBlockLine, ch: lines[lastBlockLine].length}, { line: lastBlockLine, ch: lines[lastBlockLine].length });
-						}
+						console.log('lineCounter, match1.index :>> ', lineCounter, match1.index);
+						view.editor.replaceRange(` ^highlight${bookmarkIndex}`, { line: lastBlockLine, ch: lines[lastBlockLine].length}, { line: lastBlockLine, ch: lines[lastBlockLine].length });
 					}
 					lineCounter++;
 				}
@@ -220,7 +227,7 @@ export default class ExtractHighlightsPlugin extends Plugin {
 			let bookmarkIndex = 0;
 			if(this.settings.headlineText != "") { 
 				let text = this.settings.headlineText.replace(/\$NOTE_TITLE/, `${basename}`)
-				result += `## ${text}\n`;
+				result += `### ${text}\n\n`;
 			}
 
 			for (let entry of matches) {
